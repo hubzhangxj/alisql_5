@@ -1,0 +1,61 @@
+---
+# tasks file for mysql
+
+- name: Modify the root user password
+  mysql_user:
+    login_user: root
+    login_unix_socket: "{{ mysql_dir }}/u{{ item }}/my3306/run/mysql.sock"
+    login_port: "{{ item }}"
+    name: root
+    password: 123456
+    host: "%"
+    priv: '*.*:ALL'
+    state: present
+  with_sequence: start={{ alisql_ins.split('-')[0] }} end={{ alisql_ins.split('-')[-1] }}
+  environment:
+    PATH: "{{ mysql_dir }}/my3306/bin:{{ ansible_env.PATH }}"
+    LD_LIBRARY_PATH: "{{ mysql_dir }}/my3306/lib:{{ ansible_env.LD_LIBRARY_PATH }}"
+
+- name: Create database sysbench
+  mysql_db:
+    login_host: "{{ mysql_host }}"
+    login_password: 123456
+    login_port: "{{ item[0] }}"
+    login_user: root
+    state: present
+    name: "sysbench{{ item[1] }}"
+  with_nested:
+    - { 3306, 3307, 3308, 3309, 3310 }
+    - { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12 }
+  environment:
+    PATH: "{{ mysql_dir }}/my3306/bin:{{ ansible_env.PATH }}"
+    LD_LIBRARY_PATH: "{{ mysql_dir }}/my3306/lib:{{ ansible_env.LD_LIBRARY_PATH }}"
+
+- name: Initialize the sysbench data
+  shell: |
+
+    sysbench {{ root_dir }}/db/parallel_prepare.lua \
+    --db-driver=mysql \
+    --oltp-test-mode=complex  \
+    --mysql-host={{ mysql_host }} --mysql-db=sysbench1 \
+    --mysql-password=123456 \
+    --time=7200 --max-requests=0 --mysql-user=root \
+    --mysql-table-engine=innodb --oltp-table-size=10000 \
+    --oltp-tables-count=12 --rand-type=special --rand-spec-pct=100 \
+    --threads=10 \
+    --mysql-port={{ item }} cleanup
+
+    sysbench {{ root_dir }}/db/parallel_prepare.lua \
+    --db-driver=mysql \
+    --oltp-test-mode=complex  \
+    --mysql-host={{ mysql_host }} --mysql-db=sysbench1 \
+    --mysql-password=123456 \
+    --time=7200 --max-requests=0 --mysql-user=root \
+    --mysql-table-engine=innodb --oltp-table-size=10000 \
+    --oltp-tables-count=12 --rand-type=special --rand-spec-pct=100 \
+    --threads=10 \
+    --mysql-port={{ item }} prepare
+  with_sequence: start={{ alisql_ins.split('-')[0] }} end={{ alisql_ins.split('-')[-1] }}
+  environment:
+    PATH: "{{ mysql_dir }}/my3306/bin:{{ ansible_env.PATH }}"
+    LD_LIBRARY_PATH: "{{ mysql_dir }}/my3306/lib:{{ ansible_env.LD_LIBRARY_PATH }}"

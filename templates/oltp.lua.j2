@@ -1,0 +1,129 @@
+pathtest = string.match(test, "(.*/)")
+
+if pathtest then
+   dofile(pathtest .. "common.lua")
+else
+   require("common")
+end
+
+function thread_init()
+   set_vars()
+
+   if (((db_driver == "mysql") or (db_driver == "attachsql")) and mysql_table_engine == "myisam") then
+      local i
+      local tables = {}
+      for i=1, oltp_tables_count do
+         tables[i] = string.format("sbtest%i WRITE", i)
+      end
+      begin_query = "LOCK TABLES " .. table.concat(tables, " ,")
+      commit_query = "UNLOCK TABLES"
+   else
+      begin_query = "BEGIN"
+      commit_query = "COMMIT"
+   end
+
+end
+
+function get_range_str()
+   local start = sb_rand(1, oltp_table_size)
+   return string.format(" WHERE id BETWEEN %u AND %u",
+                        start, start + oltp_range_size - 1)
+end
+
+function event()
+   local rs
+   local i
+   local table_name
+   local c_val
+   local pad_val
+   local query
+   local j
+   j = sb_rand_uniform(1, oltp_tables_count)
+   db_query("USE sysbench" .. j)
+   db_query("BEGIN")
+   c_val = sb_rand_str("###########-###########-###########-###########-###########-###########-###########-###########")
+   pad_val = sb_rand_str([[###########-###########-###########-###########-###########-###########-###########-###########]])
+  
+   db_query("DELETE FROM sbtest1 WHERE id=" .. j)
+   db_query("INSERT INTO sbtest1 (id, k, c, pad) VALUES " .. string.format("(%d, %d, '%s', '%s')",j, sb_rand(1, oltp_table_size) , c_val, pad_val))
+   
+   for i=1, 7 do
+	      db_query("SELECT * FROM sbtest1 WHERE id=" ..
+                    sb_rand(1, oltp_table_size))
+   end
+
+   db_query("DELETE FROM sbtest2 WHERE id=" .. j)
+   db_query("INSERT INTO sbtest2 (id, k, c, pad) VALUES " .. string.format("(%d, %d, '%s', '%s')",j, sb_rand(1, oltp_table_size) , c_val, pad_val))
+   db_query("DELETE FROM sbtest3 WHERE id=" .. j)
+   db_query("INSERT INTO sbtest3 (id, k, c, pad) VALUES " .. string.format("(%d, %d, '%s', '%s')",j, sb_rand(1, oltp_table_size) , c_val, pad_val))
+   db_query("DELETE FROM sbtest4 WHERE id=" .. j)
+   db_query("INSERT INTO sbtest4 (id, k, c, pad) VALUES " .. string.format("(%d, %d, '%s', '%s')",j, sb_rand(1, oltp_table_size) , c_val, pad_val))
+   db_query("DELETE FROM sbtest5 WHERE id=" .. j)
+   db_query("INSERT INTO sbtest5 (id, k, c, pad) VALUES " .. string.format("(%d, %d, '%s', '%s')",j, sb_rand(1, oltp_table_size) , c_val, pad_val))
+   db_query("DELETE FROM sbtest6 WHERE id=" .. j)
+   db_query("INSERT INTO sbtest6 (id, k, c, pad) VALUES " .. string.format("(%d, %d, '%s', '%s')",j, sb_rand(1, oltp_table_size) , c_val, pad_val))
+   db_query("DELETE FROM sbtest7 WHERE id=" .. j)
+   db_query("INSERT INTO sbtest7 (id, k, c, pad) VALUES " .. string.format("(%d, %d, '%s', '%s')",j, sb_rand(1, oltp_table_size) , c_val, pad_val))
+   db_query("DELETE FROM sbtest8 WHERE id=" .. j)
+   db_query("INSERT INTO sbtest8 (id, k, c, pad) VALUES " .. string.format("(%d, %d, '%s', '%s')",j, sb_rand(1, oltp_table_size) , c_val, pad_val))
+   db_query("DELETE FROM sbtest9 WHERE id=" .. j)
+   db_query("INSERT INTO sbtest9 (id, k, c, pad) VALUES " .. string.format("(%d, %d, '%s', '%s')",j, sb_rand(1, oltp_table_size) , c_val, pad_val))
+   db_query("DELETE FROM sbtest10 WHERE id=" .. j)
+   db_query("INSERT INTO sbtest10 (id, k, c, pad) VALUES " .. string.format("(%d, %d, '%s', '%s')",j, sb_rand(1, oltp_table_size) , c_val, pad_val))
+   db_query("DELETE FROM sbtest11 WHERE id=" .. j)
+   db_query("INSERT INTO sbtest11 (id, k, c, pad) VALUES " .. string.format("(%d, %d, '%s', '%s')",j, sb_rand(1, oltp_table_size) , c_val, pad_val))
+   db_query("DELETE FROM sbtest12 WHERE id=" .. j)
+   db_query("INSERT INTO sbtest12 (id, k, c, pad) VALUES " .. string.format("(%d, %d, '%s', '%s')",j, sb_rand(1, oltp_table_size) , c_val, pad_val))
+
+  
+   for i=1, 3 do
+	db_query("SELECT * FROM sbtest2 WHERE id=" ..
+                    sb_rand(1, oltp_table_size))
+   end
+
+   for i=1, 7 do
+      db_query("SELECT * FROM sbtest3 WHERE id=" ..
+                    sb_rand(1, oltp_table_size))
+   end
+
+   for i=1, 3 do
+      db_query("SELECT * FROM sbtest4 WHERE id=" ..
+                      sb_rand(1, oltp_table_size))
+   end
+
+   for i=1, 7 do
+      db_query("SELECT * FROM sbtest5 WHERE id=" ..
+                    sb_rand(1, oltp_table_size))
+   end
+
+   for i=1, 3 do
+	      db_query("SELECT * FROM sbtest6 WHERE id=" ..
+                    sb_rand(1, oltp_table_size))
+   end
+
+   for i=1, 7 do
+      db_query("SELECT * FROM sbtest7 WHERE id=" ..
+                    sb_rand(1, oltp_table_size))
+   end
+
+   for i=1, 3 do
+      db_query("SELECT * FROM sbtest8 WHERE id=" ..
+                    sb_rand(1, oltp_table_size))
+   end
+
+   for i=1, 3 do
+      db_query("SELECT * FROM sbtest9 WHERE id=" ..
+                    sb_rand(1, oltp_table_size))
+   end
+
+   for i=1, 3 do
+      db_query("SELECT NOW()")
+   end
+
+   for i=1, 2 do
+	      db_query("SELECT * FROM sbtest10 WHERE id=" ..
+                    sb_rand(1, oltp_table_size))
+   end
+    
+   db_query("COMMIT")
+end

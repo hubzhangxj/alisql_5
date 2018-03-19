@@ -1,0 +1,89 @@
+---
+# tasks file for mysql
+- name: create user mysql
+  user:
+    name: mysql
+    group: mysql
+
+- name: create data directory
+  file:
+    path: "{{ mysql_dir }}"
+    owner: mysql
+    group: mysql
+    mode: 0755
+    state: directory
+
+- name: Kill alisql server on ARM64 Server
+  shell: |
+    ps -ef | grep mysql | grep -v grep | awk '{print "kill -9 " $2}' | sh 
+    sleep 60
+
+- name: unmount the u01 directory to /dev/nvme0n1
+  mount:
+    path: "{{ mysql_dir }}"
+    src:  /dev/nvme0n1
+    fstype: ext4
+    state: unmounted
+
+- name: Create a ext4 filesystem on /dev/nvme0n1
+  filesystem:
+    fstype: ext4
+    dev: /dev/nvme0n1
+    force: yes
+
+- name: mount the u01 directory to /dev/nvme0n1
+  mount:
+    path: "{{ mysql_dir }}"
+    src:  /dev/nvme0n1
+    fstype: ext4
+    opts: defaults,nobarrier,noatime,nodiratime,max_batch_time=0,discard 
+    state: mounted
+
+- name: unarchive all souce codes
+  unarchive: 
+    src: "{{ item.src }}" 
+    dest: "{{ root_dir }}/{{ item.dst }}"
+    extra_opts: [--strip-components=1]
+  with_items:
+    - { src: '{{ root_dir }}/AliSQL-AliSQL-5.6.32-1.tar.gz', dst: 'mysql' }
+    - { src: '{{ root_dir }}/sysbench-1.0.0.tar.gz' , dst: 'sysbench' }
+
+- name: install alisql
+  shell: |
+    
+    ./autorun.sh 
+
+    cmake .. -DCMAKE_INSTALL_PREFIX={{ mysql_dir }}/my3306 \
+         -DMYSQL_DATADIR={{ mysql_dir }}/my3306/data \
+         -DMYSQL_USER=mysql  \
+         -DSYSCONFDIR=/etc \
+         -DWITH_MYISAM_STORAGE_ENGINE=1 \
+         -DWITH_INNOBASE_STORAGE_ENGINE=1 -DWITH_MEMORY_STORAGE_ENGINE=1 \
+         -DMYSQL_UNIX_ADDR={{ mysql_dir }}/my3306/run/mysql.sock -DMYSQL_TCP_PORT=3306 \
+         -DENABLED_LOCAL_INFILE=1 -DWITH_PARTITION_STORAGE_ENGINE=1 \
+         -DEXTRA_CHARSETS=all \
+         -DDEFAULT_CHARSET=utf8 \
+         -DDEFAULT_COLLATION=utf8_general_ci \
+         -DBUILD_CONFIG=mysql_release
+
+    make -sj 32
+
+    make install -sj 32
+  args:
+    chdir: "{{ root_dir }}/mysql/BUILD"
+
+- name: install sysbench
+  shell: |
+
+    ./autogen.sh
+    
+    sed -i 's/0x43)/0x41\ |\ 0x43)/g' configure
+    ./configure --build=aarch64-linux-gnu
+    make 
+    make install
+  args:
+    chdir: "{{ root_dir }}/sysbench"
+  environment:
+    PATH: "{{ mysql_dir }}/my3306/bin:{{ ansible_env.PATH }}"
+    LD_LIBRARY_PATH: "{{ mysql_dir }}/my3306/lib:{{ ansible_env.LD_LIBRARY_PATH }}"
+

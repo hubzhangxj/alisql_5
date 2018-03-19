@@ -1,0 +1,163 @@
+---
+# tasks file for mysql
+
+- name: copy mysql configuration files
+  template:
+    src: my.cnf.j2
+    dest: /etc/my_{{ item }}.conf
+    mode: 0660
+    owner: mysql
+    group: mysql
+  with_sequence: start={{ alisql_ins.split('-')[0] }} end={{ alisql_ins.split('-')[-1] }}
+
+- name: copy sysbench test scripts
+  template:
+    src: "{{ item.src }}"
+    dest: "{{ root_dir }}/db/{{ item.dst }}"
+    mode: 0660
+    owner: mysql
+    group: mysql
+  with_items:
+    - { src: 'common.lua.j2', dst: 'common.lua' }
+    - { src: 'oltp.lua.j2', dst: 'oltp.lua' }
+    - { src: 'parallel_prepare.lua.j2', dst: 'parallel_prepare.lua' }
+    
+- name: Kill alisql server on ARM64 Server
+  shell: ps -ef | grep mysql | grep -v grep | awk '{print "kill -9 " $2}' | sh &
+
+- name: create base dir
+  file:
+    path: "{{ mysql_dir }}/u{{ item }}"
+    mode: 0755
+    owner: mysql
+    group: mysql
+    state: directory
+  with_sequence: start={{ alisql_ins.split('-')[0] }} end={{ alisql_ins.split('-')[-1] }}
+ 
+- name: create local dir
+  file:
+    path: "{{ mysql_dir }}/u{{ item }}/my3306"
+    mode: 0755
+    owner: mysql
+    group: mysql
+    state: directory
+  with_sequence: start={{ alisql_ins.split('-')[0] }} end={{ alisql_ins.split('-')[-1] }}
+
+- name: create data dir
+  file:
+    path: "{{ mysql_dir }}/u{{ item }}/mysql"
+    mode: 0755
+    owner: mysql
+    group: mysql
+    state: directory
+  with_sequence: start={{ alisql_ins.split('-')[0] }} end={{ alisql_ins.split('-')[-1] }}
+
+- name: create tmp dir
+  file:
+    path: "{{ mysql_dir }}/u{{ item }}/my3306/tmp"
+    mode: 0755
+    owner: mysql
+    group: mysql
+    state: directory
+  with_sequence: start={{ alisql_ins.split('-')[0] }} end={{ alisql_ins.split('-')[-1] }}
+
+- name: create log dir
+  file:
+    path: "{{ mysql_dir }}/u{{ item }}/my3306/log"
+    mode: 0755
+    owner: mysql
+    group: mysql
+    state: directory
+  with_sequence: start={{ alisql_ins.split('-')[0] }} end={{ alisql_ins.split('-')[-1] }}
+
+- name: create run dir
+  file:
+    path: "{{ mysql_dir }}/u{{ item }}/my3306/run"
+    mode: 0755
+    owner: mysql
+    group: mysql
+    state: directory
+  with_sequence: start={{ alisql_ins.split('-')[0] }} end={{ alisql_ins.split('-')[-1] }}
+
+- name: create link files
+  file:
+    src: "{{ mysql_dir }}/my3306/bin" 
+    dest: "{{ mysql_dir }}/u{{ item }}/my3306/bin"
+    owner: mysql
+    group: mysql
+    state: link
+  with_sequence: start={{ alisql_ins.split('-')[0] }} end={{ alisql_ins.split('-')[-1] }}
+
+- name: create link files
+  file:
+    src: "{{ mysql_dir }}/my3306/docs"
+    dest: "{{ mysql_dir }}/u{{ item }}/my3306/docs"
+    owner: mysql
+    group: mysql
+    state: link
+  with_sequence: start={{ alisql_ins.split('-')[0] }} end={{ alisql_ins.split('-')[-1] }}
+
+- name: create link files
+  file:
+    src: "{{ mysql_dir }}/my3306/include"
+    dest: "{{ mysql_dir }}/u{{ item }}/my3306/include"
+    owner: mysql
+    group: mysql
+    state: link
+  with_sequence: start={{ alisql_ins.split('-')[0] }} end={{ alisql_ins.split('-')[-1] }}
+
+- name: create link files
+  file:
+    src: "{{ mysql_dir }}/my3306/lib"
+    dest: "{{ mysql_dir }}/u{{ item }}/my3306/lib"
+    owner: mysql
+    group: mysql
+    state: link
+  with_sequence: start={{ alisql_ins.split('-')[0] }} end={{ alisql_ins.split('-')[-1] }}
+
+- name: create link files
+  file:
+    src: "{{ mysql_dir }}/my3306/scripts"
+    dest: "{{ mysql_dir }}/u{{ item }}/my3306/scripts"
+    owner: mysql
+    group: mysql
+    state: link
+  with_sequence: start={{ alisql_ins.split('-')[0] }} end={{ alisql_ins.split('-')[-1] }}
+
+- name: create link files
+  file:
+    src: "{{ mysql_dir }}/my3306/support-files"
+    dest: "{{ mysql_dir }}/u{{ item }}/my3306/support-files"
+    owner: mysql
+    group: mysql
+    state: link
+  with_sequence: start={{ alisql_ins.split('-')[0] }} end={{ alisql_ins.split('-')[-1] }}
+
+- name: create link files
+  file:
+    src: "{{ mysql_dir }}/my3306/share"
+    dest: "{{ mysql_dir }}/u{{ item }}/my3306/share"
+    owner: mysql
+    group: mysql
+    state: link
+  with_sequence: start={{ alisql_ins.split('-')[0] }} end={{ alisql_ins.split('-')[-1] }}
+
+- name: initialize the mysql server
+  shell: |
+
+    {{ mysql_dir }}/my3306/scripts/mysql_install_db --defaults-file=/etc/my_{{ item }}.conf \
+                                     --basedir={{ mysql_dir }}/u{{ item }}/my3306 \
+                                     --datadir={{ mysql_dir }}/u{{ item }}/my3306/data \
+                                     --user=mysql
+
+    {{ mysql_dir }}/my3306/bin/mysqld_safe  --defaults-file=/etc/my_{{ item }}.conf \
+                                 --user=mysql &
+  with_sequence: start={{ alisql_ins.split('-')[0] }} end={{ alisql_ins.split('-')[-1] }} 
+  environment:
+    PATH: "{{ mysql_dir }}/my3306/bin:{{ ansible_env.PATH }}"
+    LD_LIBRARY_PATH: "{{ mysql_dir }}/my3306/lib:{{ ansible_env.LD_LIBRARY_PATH }}"
+
+- name: sleep 200 seconds 
+  shell: |
+    sleep 200
+ 

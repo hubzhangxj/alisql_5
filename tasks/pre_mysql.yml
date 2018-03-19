@@ -1,0 +1,67 @@
+---
+# tasks file for mysql
+
+- name: Install pre-some packages
+  yum: name={{ item }} state=present 
+  with_items:
+    - MySQL-python
+    - flex
+    - bison
+    - cmake
+    - libaio-devel
+    - numactl
+  when: ansible_os_family == "RedHat"
+  
+- name: Install pre-some packages in Ubuntun
+  apt: name={{ item }} state=present
+  with_items:
+    - MySQL-python
+    - flex
+    - bison
+    - cmake
+    - libaio-devel
+    - numactl
+  when: ansible_os_family == "Debian"
+  
+- name: remove all files in dst
+  file:
+    path: "{{ root_dir }}"
+    state: absent
+
+- name: crate the des directory
+  file:
+    path: "{{ root_dir }}"
+    owner: root
+    group: root
+    mode: 0777
+    state: directory
+
+- name: crate the des directory
+  file:
+    path: "{{ root_dir }}/{{ item }}"
+    owner: root
+    group: root
+    mode: 0777
+    state: directory
+  with_items:
+    - sysbench
+    - db
+    - mysql
+
+- name: create mysql group
+  group:
+    name: mysql
+    state: present
+
+- name: create user mysql
+  user:
+    name: mysql
+    group: mysql
+    state: present
+
+- name: download the source code
+  get_url: url={{ item.url }} dest="{{ root_dir }}"
+  with_items:
+    - { url: 'https://github.com/alibaba/AliSQL/archive/AliSQL-5.6.32-1.tar.gz' }
+    - { url: 'https://github.com/akopytov/sysbench/archive/1.0.0.tar.gz' }
+

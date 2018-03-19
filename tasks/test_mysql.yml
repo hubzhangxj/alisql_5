@@ -1,0 +1,135 @@
+---
+# tasks file for mysql
+
+- name: Kill alisql server on ARM64 Server
+  shell: ps -ef | grep mysql | grep -v grep | awk '{print "kill -9 " $2}' | sh & 
+  
+- name: Start alisql with numactl command
+  shell: |
+    
+    numactl -N {{ item.node }} -m {{ item.node }} {{ mysql_dir }}/my3306/bin/mysqld_safe  --defaults-file=/etc/my_{{ item.number }}.conf \
+                                 --user=mysql &
+  with_items:
+    - { node: '0', number: '3306' }
+    - { node: '1', number: '3307' }
+    - { node: '2', number: '3308' }
+    - { node: '3', number: '3309' }
+    - { node: '3', number: '3310' }
+  environment:
+    PATH: "{{ mysql_dir }}/my3306/bin:{{ ansible_env.PATH }}"
+    LD_LIBRARY_PATH: "{{ mysql_dir }}/my3306/lib:{{ ansible_env.LD_LIBRARY_PATH }}"
+
+  
+- name: Merge the ports lists
+  set_fact:  port_name="{{ item }}"
+  with_sequence: start={{ alisql_ins.split('-')[0] }} end={{ alisql_ins.split('-')[-1] }}
+  register: port_result
+
+- name: construct the test port
+  set_fact:
+    test_port: "{{ port_result.results | map(attribute='ansible_facts.port_name') | list | join(', ') }}"
+
+- name: use the sysbench to test the database 
+  shell: |
+
+    sysbench  {{ root_dir }}/db/oltp.lua \
+    --oltp-table-size=10000 \
+    --oltp-tables-count=12 \
+    --mysql-db=sysbench1 \
+    --report-interval=0 \
+    --max-requests=0 \
+    --time={{ test_time }} \
+    --mysql-host={{ mysql_host }} \
+    --mysql-port="{{ test_port }}" \
+    --mysql-password=123456 \
+    --mysql-user=root \
+    --mysql-table-engine=innodb \
+    --threads={{ item }}  run
+  with_items:
+    - 1
+    - 4
+    - 8
+    - 16
+    - 32
+    - 64
+    - 128
+    - 256
+    - 512
+  
+  register: alisql_result
+  ignore_errors: yes
+  environment:
+    PATH: "{{ mysql_dir }}/my3306/bin:{{ ansible_env.PATH }}"
+    LD_LIBRARY_PATH: "{{ mysql_dir }}/my3306/lib:{{ ansible_env.LD_LIBRARY_PATH }}"
+
+- name: clear the test result
+  file:
+    path: "/tmp/alisql_{{ item }}thread.log"
+    state: absent
+  with_items: [1, 4, 8, 16, 32, 64, 128, 256, 512]
+
+- name: get the 1 thread test result
+  lineinfile: 
+    create: yes 
+    dest: "/tmp/alisql_5_1thread.log" 
+    line: "{{ alisql_result.results[0].stdout }}"
+    state: present
+
+- name: get the 4 thread test result
+  lineinfile:
+    create: yes
+    dest: "/tmp/alisql_5_4thread.log"
+    line: "{{ alisql_result.results[1].stdout }}"
+    state: present
+
+- name: get the 8 thread test result
+  lineinfile:
+    create: yes
+    dest: "/tmp/alisql_5_8thread.log"
+    line: "{{ alisql_result.results[2].stdout }}"
+    state: present
+
+- name: get the 16 thread test result
+  lineinfile: 
+    create: yes 
+    dest: "/tmp/alisql_5_16thread.log" 
+    line: "{{ alisql_result.results[3].stdout }}"
+    state: present
+
+- name: get the 32 thread test result
+  lineinfile:
+    create: yes
+    dest: "/tmp/alisql_5_32thread.log"
+    line: "{{ alisql_result.results[4].stdout }}"
+    state: present
+
+- name: get the 64 thread test result
+  lineinfile:
+    create: yes
+    dest: "/tmp/alisql_5_64thread.log"
+    line: "{{ alisql_result.results[5].stdout }}"
+    state: present
+
+- name: get the 128 thread test result
+  lineinfile: 
+    create: yes 
+    dest: "/tmp/alisql_5_128thread.log" 
+    line: "{{ alisql_result.results[6].stdout }}"
+    state: present
+
+- name: get the 256 thread test result
+  lineinfile:
+    create: yes
+    dest: "/tmp/alisql_5_256thread.log"
+    line: "{{ alisql_result.results[7].stdout }}"
+    state: present
+
+- name: get the 512 thread test result
+  lineinfile:
+    create: yes
+    dest: "/tmp/alisql_5_512thread.log"
+    line: "{{ alisql_result.results[8].stdout }}"
+    state: present
+
+- name: Kill alisql server on ARM64 Server
+  shell: ps -ef | grep mysql | grep -v grep | awk '{print "kill -9 " $2}' | sh & 
